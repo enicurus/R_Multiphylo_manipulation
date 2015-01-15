@@ -1,0 +1,54 @@
+   ### Add new_taxon to trees, always as sister to buddy_taxon; which is already in the trees###
+   require(phytools) 	
+    tree.buddy<-function(tree,buddy_taxon,new_taxon) {
+    	uu<-as.integer(1:length(tree))
+	for(i in 1:length(tree)){
+		uu[i]<-(grep(buddy_taxon,tree[[i]]$tip.label))
+    	tree[[i]]<-bind.tip(tree[[i]],new_taxon,where=uu[i],position=0.5*tree[[i]]$edge.length[which(tree[[i]]$edge[,2]==uu[i])])
+    	}
+    	return(tree)
+}
+
+
+###all these functions require phytools###
+###species must be in quotes and contain the full name, ie "Alca_torda"###
+###tree must be a set of trees###
+###To use with add.family.to.tip, add the family name to species ie "Alcidae_Alca_torda"###
+
+multi.add.sp<-function(tree,species){
+for(i in 1:length(tree))
+tree[[i]]<-add.species.to.genus(tree[[i]],species,where="random")
+return(tree)
+}
+
+
+###drop a tip from a set of trees###
+
+multi.drop.tip<-function(tree,species){
+	for(i in 1:length(tree))
+	tree[[i]]<-drop.tip(tree[[i]],species)
+	return(tree)
+}
+
+###To add species randomly in their family (as opposed to genus; this is most helpful for species in extinct genera)###
+###Taxa is a list of taxa defining the family imported from a .csv file###
+###family must be in quotes###
+
+add.family.to.tip<-function(tree,family,taxa){
+	sp<-as.vector(taxa[,1])
+	taxon<-as.list(sp)
+	for (i in 1:length(taxon))
+	tree$tip.label[tree$tip.label==taxon[i]]<-as.character(paste(family,taxon[[i]],sep="_"))
+	return(tree)
+}
+
+
+###This function relies on the previous function but iterates ovr multiple trees###
+multi.add.family<-function(tree,family,taxa){
+for(i in 1:length(tree))
+tree[[i]]<-add.family.to.tip(tree[[i]],family,taxa)
+return(tree)
+}
+
+
+### family names can then be removed from tips with the regular expression: find (\d+\s)(\w+)_(\w+)_(\w+) replace with \1\3_\4 ###
