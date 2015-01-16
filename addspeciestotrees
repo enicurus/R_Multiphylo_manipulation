@@ -15,6 +15,8 @@
 ###tree must be a set of trees###
 ###To use with add.family.to.tip, add the family name to species ie "Alcidae_Alca_torda"###
 
+
+### Add a species randomly to its genus, halfway down the branch it connects to, with different placements across trees###
 multi.add.sp<-function(tree,species){
 for(i in 1:length(tree))
 tree[[i]]<-add.species.to.genus(tree[[i]],species,where="random")
@@ -51,4 +53,5 @@ return(tree)
 }
 
 
-### family names can then be removed from tips with the regular expression: find (\d+\s)(\w+)_(\w+)_(\w+) replace with \1\3_\4 ###
+### family names can then be removed from tips with the regular expression: ###
+### find (\w+)_(\w+_\w+) replace with \2 ###
