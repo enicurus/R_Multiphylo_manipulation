@@ -54,4 +54,4 @@ return(tree)
 
 
 ### family names can then be removed from tips with the regular expression: ###
-### find (\w+)_(\w+_\w+) replace with \2 ###
+### find \w+_(\w+_\w+) replace with \1 ###
