@@ -1,57 +1,171 @@
-   ### Add new_taxon to trees, always as sister to buddy_taxon; which is already in the trees###
-   require(phytools) 	
-    tree.buddy<-function(tree,buddy_taxon,new_taxon) {
-    	uu<-as.integer(1:length(tree))
-	for(i in 1:length(tree)){
-		uu[i]<-(grep(buddy_taxon,tree[[i]]$tip.label))
-    	tree[[i]]<-bind.tip(tree[[i]],new_taxon,where=uu[i],position=0.5*tree[[i]]$edge.length[which(tree[[i]]$edge[,2]==uu[i])])
-    	}
-    	return(tree)
-}
+ #(1) Write a function that multiplies all consecutively decreasing numbers between a maximum and a minimum supplied as arguments. (Like a factorial, but not necessarily going all the way to 1). This calculation would look like
+
+#max * max-1 * max-2 * ... * min
+
+#(2) Using the function you wrote in (1), write a function that calculates the binomial coefficient (see Definition 1.4.12 in the probability reading). Actually, do this twice. The first time (2a) calculate all factorials fully. Now re-write the function and cancel as many terms as possible so you can avoid unnecessary multiplication (see the middle expression in Theorem 1.4.13).
+
+#(3) Try calculating different binomial coefficients using both the functions from (2a) and (2b) for different values of n and k. Try some really big values there is a noticeable difference in speed between the (2a) and (2b) function. Which one is faster? By roughly how much?
+
+#(4) Use either function (2a) or (2b) to write a function that calculates the probability of k successes in n Bernoulli trials with probability p. This is called the Binomial(n,p) distribution. See Theorem 3.3.5 for the necessary equation. [Hint: pow(x,y) returns x^y (x raised to the power of y).]
+
+#(5) Now write a function to sample from an arbitrary discrete distribution. This function should take two arguments. The first is a list of arbitrarily labeled events and the second is a list of probabilities associated with these events. Obviously, these two lists should be the same length.
+
+#---> Sampling sites from an alignment <---
+
+#Imagine that you have a multiple sequence alignment with two kinds of sites. One type of site pattern supports the monophyly of taxon A and taxon B. The second type supports the monophyly of taxon A and taxon C.
+
+#(6) For an alignment of 400 sites, with 200 sites of type 1 and 200 of type 2, sample a new alignment (a new set of site pattern counts) with replacement from the original using your function from (5). Print out the counts of the two types.
+
+#(7) Repeat (6) 100 times and store the results in a list.
+
+#(8) Of those 100 trials, summarize how often you saw particular proportions of type 1 vs. type 2. 
+
+#(9) Calculate the probabilities of the proportions you saw in (8) using the binomial probability mass function (PMF) from (4).
+
+#(10) Compare your results from (8) and (9).
+
+#(11) Repeat 7-10, but use 10,000 trials.
+
+import random
+import numpy as np
+from scipy import stats
+import matplotlib.pyplot as plt
+import functools
+import operator
+functools.reduce(operator.mul, [1,2,3,4,5,6], 1)
+import scipy
 
 
-###all these functions require phytools###
-###species must be in quotes and contain the full name, ie "Alca_torda"###
-###tree must be a set of trees###
-###To use with add.family.to.tip, add the family name to species ie "Alcidae_Alca_torda"###
+def fact(n,k): 
+  out=1
+  for i in range(n,k-1,-1):
+      out=out*i
+  return out
+      
+   
+   
 
 
-### Add a species randomly to its genus, halfway down the branch it connects to, with different placements across trees###
-multi.add.sp<-function(tree,species){
-for(i in 1:length(tree))
-tree[[i]]<-add.species.to.genus(tree[[i]],species,where="random")
-return(tree)
-}
+def binCoeff(n,k): #calculate the bin coefficient with equation 1.4.13
+      return fact(n,(n-k+1))/fact(k,1)
+ 
+    
+    
+def binomPMF(k,n,p):
+    """
+    This function returns the probability mass of k successes for a binomial distribution with n trials and a
+    probability of success given by p.
+    """
+    return binCoeff(n,k)*pow(p,k)*pow((1-p),(n-k))
+# set up a list with all relevant values of p
+P=range(0,101,5)
+
+P=[b/100 for b in P]
+    
 
 
-###drop a tip from a set of trees###
 
-multi.drop.tip<-function(tree,species){
-	for(i in 1:length(tree))
-	tree[[i]]<-drop.tip(tree[[i]],species)
-	return(tree)
-}
+# Calculate the likelihood scores for these values of p, in light of the data you've collected
 
-###To add species randomly in their family (as opposed to genus; this is most helpful for species in extinct genera)###
-###Taxa is a list of taxa defining the family imported from a .csv file###
-###family must be in quotes###
+def likelihood(k,n,p):
+   lik = binomPMF(k,n,p)
+   return lik
 
-add.family.to.tip<-function(tree,family,taxa){
-	sp<-as.vector(taxa[,1])
-	taxon<-as.list(sp)
-	for (i in 1:length(taxon))
-	tree$tip.label[tree$tip.label==taxon[i]]<-as.character(paste(family,taxon[[i]],sep="_"))
-	return(tree)
-}
-
-
-###This function relies on the previous function but iterates ovr multiple trees###
-multi.add.family<-function(tree,family,taxa){
-for(i in 1:length(tree))
-tree[[i]]<-add.family.to.tip(tree[[i]],family,taxa)
-return(tree)
-}
+likes=[]
+ 
+for val in P:
+    num=likelihood(12,20,val)
+    likes.append(num)
+    
+ 
+maxlik = max(likes)
+ 
+print "the maximum likelihood is" + str(maxlik)
+ 
+list[likes.index(maxlik)]
+ 
+ratio=[]
+for val in likes:
+     ratio.append(val/maxlik)
+ 
 
 
-### family names can then be removed from tips with the regular expression: ###
-### find \w+_(\w+_\w+) replace with \1 ###
+# Write a function that finds the ML value of p for a binomial, given k and n.
+
+
+def MLVal(k,n):
+    diff=0.1
+    pCurr=scipy.random.random() #start at a random spot between 0 and 1
+    currLik = likelihood(k,n,pCurr) #calculate the likelihood of the p
+    pVals=[] #set up a list for the p values
+    MLVals=[] # set up a list for the ML values
+    upLik = likelihood(k,n,(pCurr+diff))
+    downLik = likelihood(k,n,(pCurr-diff)) 
+    while diff>0.001:
+        if  upLik>currLik:
+            currLik=likelihood(k,n,pCurr)
+            pCurr=pCurr+diff
+          
+           
+        elif downLik>currLik:
+             currLik=likelihood(k,n,pCurr)
+             pCurr=pCurr-diff
+             
+            
+        else:
+            diff*=0.5
+  
+    return pCurr
+            
+            
+k = MLVal(4,5)
+
+
+
+
+
+"""
+In the exercise above, you tried to find an intuitive cutoff for likelihood ratio
+scores that would give you a reasonable interval in which to find the true value of 
+p. Now, we will empirically determine one way to construct such an interval. To do 
+so, we will ask how far away from the true value of a parameter the ML estimate 
+might stray. Use this procedure: (1) start with a known value for p, (2) simulate
+a bunch of datasets, (3) find ML parameter estimates for each simulation, and then 
+(4) calculate the likelihood ratios comparing the true parameter values and the ML
+estimates. When you do this, you will be constructing a null distribution of
+likelihood ratios that might be expected if the value of p you picked in (1)
+was true. Note that the ML values for these replicates are very often greater than
+L(true value of P), because the ML value can only ever be >= L(true value). Once 
+you have this distribution, find the likelihood ratio cutoff you need to ensure 
+that the probability of seeing an LR score that big or greater is <= 5%. 
+"""
+
+# Set a starting, true value for p
+
+trueP = 0.8
+
+
+
+# Simulate 1,000 datasets of 200 trials from a binomial with this p
+# If you haven't already done so, you'll want to import the binom class from scipy:
+# from scipy.stats import binom
+# binom.rvs(n,p) will then produce a draw from the corresponding binomial.
+
+from scipy.stats import binom
+
+set=[]
+for i in range (1,1001):
+    s=binom.rvs(200,0.8)
+    set.append(s)
+    
+    
+# Now find ML parameter estimates for each of these trials
+    
+
+
+MLtrials=[]
+for i in range(0,1000):
+    v=MLVal(set[i],200)
+    MLtrials.append(v)  
+
+ 
