@@ -326,6 +326,7 @@ for(i in 1:length(matrix[,1]))
 x=as.vector(matrix[,i])
 names(x)<-names(vector)
 vectorName<-paste("vector",1,sep="_")
+vectorList<-list()
 vectorList[[vectorName]]<-make.simmap(tree,x=x,nsim=100)
 return(vectorList)
 }
