@@ -1,4 +1,4 @@
-   #Evolution of molt strategies in birds#
+#Evolution of molt strategies in birds#
 
 require(phytools)
 
@@ -325,8 +325,9 @@ multiSimmap<-function(tree,matrix,vector){
 for(i in 1:length(matrix[,1]))
 x=as.vector(matrix[,i])
 names(x)<-names(vector)
-X[i]<-make.simmap(tree,x=x,nsim=100)
-return(X)
+vectorName<-paste("vector",1,sep="_")
+vectorList[[vectorName]]<-make.simmap(tree,x=x,nsim=100)
+return(vectorList)
 }
 
-PSSimmaps<-multiSimmap(treePF,PFMatrix)
+PFSimmaps<-multiSimmap(treePF,PFMatrix)
