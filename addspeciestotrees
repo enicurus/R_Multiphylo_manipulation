@@ -1,57 +1,332 @@
-   ### Add new_taxon to trees, always as sister to buddy_taxon; which is already in the trees###
-   require(phytools) 	
-    tree.buddy<-function(tree,buddy_taxon,new_taxon) {
-    	uu<-as.integer(1:length(tree))
-	for(i in 1:length(tree)){
-		uu[i]<-(grep(buddy_taxon,tree[[i]]$tip.label))
-    	tree[[i]]<-bind.tip(tree[[i]],new_taxon,where=uu[i],position=0.5*tree[[i]]$edge.length[which(tree[[i]]$edge[,2]==uu[i])])
-    	}
-    	return(tree)
+   #Evolution of molt strategies in birds#
+
+require(phytools)
+
+#load trees#
+
+genomeTree<-read.nexus("~/Desktop/MoltStrategyEvolution/genome_tree.tre") #load genome tree# 
+
+hackettTree<-read.nexus("~/Desktop/MoltStrategyEvolution/ultrametric_Hackett_etal_100mya.tre") #load Hackett tree#
+
+genomeTips<-genomeTree$tip.label #generate lists of tip labels
+hackettTips<-hackettTree$.tip.label
+
+#export the tip labels to csv files to make matrix of molt states
+write.csv(genomeTips,"~/Desktop/MoltStrategyEvolution/genomeTips.csv")
+write.csv(hackettTips,"~/Desktop/MoltStrategyEvolution/HackettTips.csv")
+
+
+#import character states
+matrix<-read.csv("~/Desktop/MoltStrategyEvolution/HackettTips.csv")
+
+#make three copies of trees to be differentially pruned for missing data
+treePF<-hackettTree
+treePA<-hackettTree
+treeStaffel<-hackettTree
+treeSimul<-hackettTree
+
+#make vectors for each variable with missing data
+PFmissing<-as.vector(matrix$Species[matrix$PF=="-"])
+PAmissing<-as.vector(matrix$Species[matrix$PA=="-"])
+Staffelmissing<-as.vector(matrix$Species[matrix$Staffel=="-"])
+Simulmissing<-as.vector(matrix$Species[matrix$Simul=="-"])
+
+#prune each tree by missing data
+treePF<-drop.tip(treePF,PFmissing)
+treePA<-drop.tip(treePA,PAmissing)
+treeStaffel<-drop.tip(treeStaffel,Staffelmissing)
+treeSimul<-drop.tip(treeSimul,Simulmissing)
+
+#make pruned vectors for the trees
+PF<-(matrix$PF)
+PF<-as.vector(PF)
+names(PF)<-matrix$Species
+PF<-(PF[PF!="-"])
+
+
+PA<-(matrix$PA)
+PA<-as.vector(PA)
+names(PA)<-matrix$Species
+PA<-(PA[PA!="-"])
+
+
+
+Staffel<-(matrix$Staffel)
+Staffel<-as.vector(Staffel)
+names(Staffel)<-matrix$Species
+Staffel<-(Staffel[Staffel!="-"])
+
+Simul<-(matrix$Simul)
+Simul<-as.vector(Simul)
+names(Simul)<-matrix$Species
+Simul<-(Simul[Simul!="-"])
+
+
+
+###use stochastic character mapping to estimat posterior probability of states along the branch with 100 trees###
+PF.simmap<-make.simmap(treePF,PF,nsim=1000) 
+PA.simmap<-make.simmap(treePA,PA,nsim=100)
+Staffel.simmap<-make.simmap(treeStaffel,Staffel,nsim=100)
+Simul.simmap<-make.simmap(treeSimul,Simul,nsim=100)
+
+
+
+#make a densityMap object
+PFDensityMap<-densityMap(PF.simmap,plot=FALSE)
+PADensityMap<-densityMap(PA.simmap,plot=FALSE)
+StaffelDensityMap<-densityMap(Staffel.simmap,plot=FALSE)
+SimulDensityMap<-densityMap(Simul.simmap,plot=F)
+
+#set the DensityMap function to grayscale colors
+n<-length(PFDensityMap$cols)
+PFDensityMap$cols[1:n]<-rev(grey(0:(n-1)/(n-1)))
+PADensityMap$cols[1:n]<-rev(grey(0:(n-1)/(n-1)))
+StaffelDensityMap$cols[1:n]<-rev(grey(0:(n-1)/(n-1)))
+SimulDensityMap$cols[1:n]<-rev(grey(0:(n-1)/(n-1)))
+
+#plot the density map
+plot(PFDensityMap,fsize=0.4,outline=T)
+#default res is 100 
+
+#write the plot to a pdf - note some changes to the plot to look better as pdf
+pdf(file="~/Desktop/MoltStrategyEvolution/PFStochmap.pdf")
+plot(PFDensityMap,fsize=0.4,outline=T,lwd=2)
+text(100,-8,"Preformative Molt")
+plot(PADensityMap,fsize=0.4,outline=T,lwd=2)
+text(100,-8,"Prealternate Molt")
+plot(StaffelDensityMap,fsize=0.4,outline=T,lwd=2)
+text(100,-8,"Staffelmauser")
+plot(SimulDensityMap,fsize=0.4,outline=T,lwd=2)
+text(100,-8,"Simultaneous Wing Molt")
+dev.off()
+
+#plot transitions
+library(ggplot2)
+library(reshape)
+describePFmap<-describe.simmap(PF.simmap)
+PFtrans<-data.frame(describePFmap$count)
+pftrans.melt<-melt(PFtrans)
+PFtrans.melt<-pftrans.melt[1001:3000,]
+
+describePAmap<-describe.simmap(PA.simmap)
+PAtrans<-data.frame(describePAmap$count)
+patrans.melt<-melt(PAtrans)
+PAtrans.melt<-patrans.melt[101:300,]
+
+describeStaffelmap<-describe.simmap(Staffel.simmap)
+Staffeltrans<-data.frame(describeStaffelmap$count)
+Staffeltrans.melt<-melt(Staffeltrans)
+Staffeltrans.melt<-Staffeltrans.melt[101:300,]
+
+describeSimulmap<-describe.simmap(Simul.simmap)
+Simultrans<-data.frame(describeSimulmap$count)
+Simultrans.melt<-melt(Simultrans)
+Simultrans.melt<-Simultrans.melt[101:300,]
+
+
+pdf(file="~/Desktop/MoltStrategyEvolution/PFtransitions.pdf")
+ggplot(PFtrans.melt,aes(value,fill=variable))+geom_histogram(binwidth=1,alpha=0.5,position="identity")+theme_bw()+labs(x = "Estimated number of transitions", y = "Number of posterior trees")+scale_fill_discrete(labels=c("gains of PF","Losses of PF"))
+write.quartz("~/Desktop/MoltStrategyEvolution/PFtransitions.png")
+
+ggplot(PAtrans.melt,aes(value,fill=variable))+geom_histogram(binwidth=1,alpha=0.5,position="identity")+theme_bw()+labs(x = "Estimated number of transitions", y = "Number of posterior trees")+scale_fill_discrete(labels=c("gains of PA","Losses of PA"))
+write.quartz("~/Desktop/MoltStrategyEvolution/PAtransitions.png")
+
+ggplot(Staffeltrans.melt,aes(value,fill=variable))+geom_histogram(binwidth=1,alpha=0.5,position="identity")+theme_bw()+labs(x = "Estimated number of transitions", y = "Number of posterior trees")+scale_fill_discrete(labels=c("gains of Staffelmauser","Losses of Staffelmauser"))
+write.quartz("~/Desktop/MoltStrategyEvolution/Staffeltransitions.png")
+
+ggplot(Simultrans.melt,aes(value,fill=variable))+geom_histogram(binwidth=1,alpha=0.5,position="identity")+theme_bw()+labs(x = "Estimated number of transitions", y = "Number of posterior trees")+scale_fill_discrete(labels=c("gains of Simultaneous pp molt","Losses of Simultaneous pp molt"))
+
+write.quartz("~/Desktop/MoltStrategyEvolution/PFtransitions.png")
+
+dev.off()
+#Evolution of molt strategies in birds#
+
+require(phytools)
+
+#load trees#
+
+genomeTree<-read.nexus("~/Desktop/MoltStrategyEvolution/genome_tree.tre") #load genome tree# 
+
+hackettTree<-read.nexus("~/Desktop/MoltStrategyEvolution/ultrametric_Hackett_etal_100mya.tre") #load Hackett tree#
+
+genomeTips<-genomeTree$tip.label #generate lists of tip labels
+hackettTips<-hackettTree$.tip.label
+
+#export the tip labels to csv files to make matrix of molt states
+write.csv(genomeTips,"~/Desktop/MoltStrategyEvolution/genomeTips.csv")
+write.csv(hackettTips,"~/Desktop/MoltStrategyEvolution/HackettTips.csv")
+
+
+#import character states
+matrix<-read.csv("~/Desktop/MoltStrategyEvolution/HackettTips.csv")
+
+#make three copies of trees to be differentially pruned for missing data
+treePF<-hackettTree
+treePA<-hackettTree
+treeStaffel<-hackettTree
+treeSimul<-hackettTree
+
+#make vectors for each variable with missing data
+PFmissing<-as.vector(matrix$Species[matrix$PF=="-"])
+PAmissing<-as.vector(matrix$Species[matrix$PA=="-"])
+Staffelmissing<-as.vector(matrix$Species[matrix$Staffel=="-"])
+Simulmissing<-as.vector(matrix$Species[matrix$Simul=="-"])
+
+#prune each tree by missing data
+treePF<-drop.tip(treePF,PFmissing)
+treePA<-drop.tip(treePA,PAmissing)
+treeStaffel<-drop.tip(treeStaffel,Staffelmissing)
+treeSimul<-drop.tip(treeSimul,Simulmissing)
+
+#make pruned vectors for the trees
+PF<-(matrix$PF)
+PF<-as.vector(PF)
+names(PF)<-matrix$Species
+PF<-(PF[PF!="-"])
+
+
+PA<-(matrix$PA)
+PA<-as.vector(PA)
+names(PA)<-matrix$Species
+PA<-(PA[PA!="-"])
+
+
+
+Staffel<-(matrix$Staffel)
+Staffel<-as.vector(Staffel)
+names(Staffel)<-matrix$Species
+Staffel<-(Staffel[Staffel!="-"])
+
+Simul<-(matrix$Simul)
+Simul<-as.vector(Simul)
+names(Simul)<-matrix$Species
+Simul<-(Simul[Simul!="-"])
+
+
+
+###use stochastic character mapping to estimat posterior probability of states along the branch with 100 trees###
+PF.simmap<-make.simmap(treePF,PF,nsim=1000) 
+PA.simmap<-make.simmap(treePA,PA,nsim=100)
+Staffel.simmap<-make.simmap(treeStaffel,Staffel,nsim=100)
+Simul.simmap<-make.simmap(treeSimul,Simul,nsim=100)
+
+
+
+#make a densityMap object
+PFDensityMap<-densityMap(PF.simmap,plot=FALSE)
+PADensityMap<-densityMap(PA.simmap,plot=FALSE)
+StaffelDensityMap<-densityMap(Staffel.simmap,plot=FALSE)
+SimulDensityMap<-densityMap(Simul.simmap,plot=F)
+
+#set the DensityMap function to grayscale colors
+n<-length(PFDensityMap$cols)
+PFDensityMap$cols[1:n]<-rev(grey(0:(n-1)/(n-1)))
+PADensityMap$cols[1:n]<-rev(grey(0:(n-1)/(n-1)))
+StaffelDensityMap$cols[1:n]<-rev(grey(0:(n-1)/(n-1)))
+SimulDensityMap$cols[1:n]<-rev(grey(0:(n-1)/(n-1)))
+
+#plot the density map
+plot(PFDensityMap,fsize=0.4,outline=T)
+#default res is 100 
+
+#write the plot to a pdf - note some changes to the plot to look better as pdf
+pdf(file="~/Desktop/MoltStrategyEvolution/PFStochmap.pdf")
+plot(PFDensityMap,fsize=0.4,outline=T,lwd=2)
+text(100,-8,"Preformative Molt")
+plot(PADensityMap,fsize=0.4,outline=T,lwd=2)
+text(100,-8,"Prealternate Molt")
+plot(StaffelDensityMap,fsize=0.4,outline=T,lwd=2)
+text(100,-8,"Staffelmauser")
+plot(SimulDensityMap,fsize=0.4,outline=T,lwd=2)
+text(100,-8,"Simultaneous Wing Molt")
+dev.off()
+
+#plot transitions
+library(ggplot2)
+library(reshape)
+describePFmap<-describe.simmap(PF.simmap)
+PFtrans<-data.frame(describePFmap$count)
+pftrans.melt<-melt(PFtrans)
+PFtrans.melt<-pftrans.melt[1001:3000,]
+
+describePAmap<-describe.simmap(PA.simmap)
+PAtrans<-data.frame(describePAmap$count)
+patrans.melt<-melt(PAtrans)
+PAtrans.melt<-patrans.melt[101:300,]
+
+describeStaffelmap<-describe.simmap(Staffel.simmap)
+Staffeltrans<-data.frame(describeStaffelmap$count)
+Staffeltrans.melt<-melt(Staffeltrans)
+Staffeltrans.melt<-Staffeltrans.melt[101:300,]
+
+describeSimulmap<-describe.simmap(Simul.simmap)
+Simultrans<-data.frame(describeSimulmap$count)
+Simultrans.melt<-melt(Simultrans)
+Simultrans.melt<-Simultrans.melt[101:300,]
+
+
+pdf(file="~/Desktop/MoltStrategyEvolution/PFtransitions.pdf")
+ggplot(PFtrans.melt,aes(value,fill=variable))+geom_histogram(binwidth=1,alpha=0.5,position="identity")+theme_bw()+labs(x = "Estimated number of transitions", y = "Number of posterior trees")+scale_fill_discrete(labels=c("gains of PF","Losses of PF"))
+write.quartz("~/Desktop/MoltStrategyEvolution/PFtransitions.png")
+
+ggplot(PAtrans.melt,aes(value,fill=variable))+geom_histogram(binwidth=1,alpha=0.5,position="identity")+theme_bw()+labs(x = "Estimated number of transitions", y = "Number of posterior trees")+scale_fill_discrete(labels=c("gains of PA","Losses of PA"))
+write.quartz("~/Desktop/MoltStrategyEvolution/PAtransitions.png")
+
+ggplot(Staffeltrans.melt,aes(value,fill=variable))+geom_histogram(binwidth=1,alpha=0.5,position="identity")+theme_bw()+labs(x = "Estimated number of transitions", y = "Number of posterior trees")+scale_fill_discrete(labels=c("gains of Staffelmauser","Losses of Staffelmauser"))
+write.quartz("~/Desktop/MoltStrategyEvolution/Staffeltransitions.png")
+
+ggplot(Simultrans.melt,aes(value,fill=variable))+geom_histogram(binwidth=1,alpha=0.5,position="identity")+theme_bw()+labs(x = "Estimated number of transitions", y = "Number of posterior trees")+scale_fill_discrete(labels=c("gains of Simultaneous pp molt","Losses of Simultaneous pp molt"))
+
+write.quartz("~/Desktop/MoltStrategyEvolution/PFtransitions.png")
+
+dev.off()
+
+
+
+
+###Now I am going to try to compare each lineage to brownian evolution to search for signal of non-neutral process###
+
+#Make a new list of states for each tip in a variable:
+
+varMultiplier<-function(states){
+state<-matrix(nrow=length(states),ncol=length(states))
+for (i in 1:length(states))
+state[,i]<-states
+return(state)
 }
 
+# make a character matrix for each variable, with length and width equal to number of tips
 
-###all these functions require phytools###
-###species must be in quotes and contain the full name, ie "Alca_torda"###
-###tree must be a set of trees###
-###To use with add.family.to.tip, add the family name to species ie "Alcidae_Alca_torda"###
+PFMatrix<-varMultiplier(PF)
+PAMatrix<-varMultiplier(PA)
+StaffelMatrix<-varMultiplier(Staffel)
+SimulMatrix<-varMultiplier(Simul)
 
 
-### Add a species randomly to its genus, halfway down the branch it connects to, with different placements across trees###
-multi.add.sp<-function(tree,species){
-for(i in 1:length(tree))
-tree[[i]]<-add.species.to.genus(tree[[i]],species,where="random")
-return(tree)
+# Remove knowledge of tip state for one tip at a time for the whole matrix
+
+JonSnow<-function(matrix){
+for (i in 1:length(matrix[1,]))
+matrix[i,i]=0.5
+return(matrix)
 }
 
+PFMatrix<-JonSnow(PFMatrix)
+PAMatrix<-JonSnow(PAMatrix)
+StaffelMatrix<-JonSnow(StaffelMatrix)
+SimulMatrix<-JonSnow(SimulMatrix)
 
-###drop a tip from a set of trees###
 
-multi.drop.tip<-function(tree,species){
-	for(i in 1:length(tree))
-	tree[[i]]<-drop.tip(tree[[i]],species)
-	return(tree)
+M#ake 100 Simmaps for each column
+
+
+
+multiSimmap<-function(tree,matrix,vector){
+for(i in 1:length(matrix[,1]))
+x=as.vector(matrix[,i])
+names(x)<-names(vector)
+X[i]<-make.simmap(tree,x=x,nsim=100)
+return(X)
 }
 
-###To add species randomly in their family (as opposed to genus; this is most helpful for species in extinct genera)###
-###Taxa is a list of taxa defining the family imported from a .csv file###
-###family must be in quotes###
-
-add.family.to.tip<-function(tree,family,taxa){
-	sp<-as.vector(taxa[,1])
-	taxon<-as.list(sp)
-	for (i in 1:length(taxon))
-	tree$tip.label[tree$tip.label==taxon[i]]<-as.character(paste(family,taxon[[i]],sep="_"))
-	return(tree)
-}
-
-
-###This function relies on the previous function but iterates ovr multiple trees###
-multi.add.family<-function(tree,family,taxa){
-for(i in 1:length(tree))
-tree[[i]]<-add.family.to.tip(tree[[i]],family,taxa)
-return(tree)
-}
-
-
-### family names can then be removed from tips with the regular expression: ###
-### find \w+_(\w+_\w+) replace with \1 ###
+PSSimmaps<-multiSimmap(treePF,PFMatrix)
