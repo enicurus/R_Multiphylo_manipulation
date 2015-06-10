@@ -24,6 +24,8 @@ return(tree)
 }
 
 
+
+
 ###drop a tip from a set of trees###
 
 multi.drop.tip<-function(tree,species){
@@ -51,6 +53,8 @@ for(i in 1:length(tree))
 tree[[i]]<-add.family.to.tip(tree[[i]],family,taxa)
 return(tree)
 }
+
+### Note - its probably easier just to use lapply ie newTree<-lapply(tree,add.family.to.tip,family,taxa) ###
 
 
 ### family names can then be removed from tips with the regular expression: ###
