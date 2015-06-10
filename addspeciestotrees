@@ -24,7 +24,7 @@ return(tree)
 }
 
 
-
+### lapply may very well be faster: newTree<-lapply(tree,add.species.to.genus,species,where="random") ###
 
 ###drop a tip from a set of trees###
 
